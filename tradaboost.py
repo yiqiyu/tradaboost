@@ -18,6 +18,8 @@ from sklearn.ensemble.weight_boosting import DTYPE, BaseDecisionTree, BaseForest
 # from validation import cross_val_score
 from sklearn.model_selection import cross_val_score
 
+__all__ = ["TradaboostClassifier", "TradaboostRegressor"]
+
 
 class TradaboostClassifier(object):
     def __init__(self, learner, epoches):
@@ -238,7 +240,7 @@ class AdaBoostRegressorDash(AdaBoostRegressor):
         return sample_weight, estimator_weight, estimator_error
 
 
-class TwoStageTradaboostR2(object):
+class TradaboostRegressor(object):
     def __init__(self, N, S, F, learner):
         self.S = S
         self.N = N
@@ -322,8 +324,8 @@ if __name__ == '__main__':
     a_y = pd.read_csv("D:/data analysis practise/4-14/a_y.csv", header=None)
     b_y = pd.read_csv("D:/data analysis practise/4-14/b_y.csv", header=None)
     print("------finish loading---------")
-    # r2 = TwoStageTradaboostR2(20, 30, 4, XGBRegressor(n_estimators=50, max_depth=3, base_score=0.25))
-    # # r2 = TwoStageTradaboostR2(50, 50, 3, DecisionTreeRegressor(max_depth=7))
+    # r2 = TradaboostRegressor(20, 30, 4, XGBRegressor(n_estimators=50, max_depth=3, base_score=0.25))
+    # # r2 = TradaboostRegressor(50, 50, 3, DecisionTreeRegressor(max_depth=7))
     # r2.train(a, a_y, b, b_y)
     # with open("r2_model", "wb+") as f:
     #     pickle.dump(r2, f)
