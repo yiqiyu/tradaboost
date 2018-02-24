@@ -242,6 +242,13 @@ class AdaBoostRegressorDash(AdaBoostRegressor):
 
 class TradaboostRegressor(object):
     def __init__(self, N, S, F, learner):
+        """
+        :param N:  the maximum number of boosting iterations N
+        :param S:  the number of steps S
+        :param F:  the number of folds F for cross validation
+        :param learner:  a base learning algorithm
+        :return:
+        """
         self.S = S
         self.N = N
         self.F = F
@@ -313,7 +320,7 @@ class TradaboostRegressor(object):
 
         # res = minimize_scalar(funct, method="bounded", bounds=(-10*7, 10**7), options={'xatol': 1e-02})
         res = minimize_scalar(funct, method="golden", options={'xtol': 1.4901161193847656e-08,'maxiter': 7000})
-        print("source weight sum: %s, loss: %s" % (target, res["fun"]))
+        print("target weight sum: %s, loss: %s" % (target, res["fun"]))
 
         return res.x if res["success"] else None
 
@@ -324,22 +331,22 @@ if __name__ == '__main__':
     a_y = pd.read_csv("D:/data analysis practise/4-14/a_y.csv", header=None)
     b_y = pd.read_csv("D:/data analysis practise/4-14/b_y.csv", header=None)
     print("------finish loading---------")
-    # r2 = TradaboostRegressor(20, 30, 4, XGBRegressor(n_estimators=50, max_depth=3, base_score=0.25))
-    # # r2 = TradaboostRegressor(50, 50, 3, DecisionTreeRegressor(max_depth=7))
-    # r2.train(a, a_y, b, b_y)
-    # with open("r2_model", "wb+") as f:
-    #     pickle.dump(r2, f)
-    # # with open("r2_model", "rb+") as f:
-    # #     r2 = pickle.load(f)
-    #
-    # print("---------------------training finished---------------------")
-    # test = pd.read_csv("D:/data analysis practise/4-14/bb_test.csv")
-    # no = test["no"]
-    # test.drop(["WebInfo_1", "no"], 1, inplace=True)
-    # res = r2.predict(test)
-    # test['pred'] = res
-    # test["no"] = no
-    # test[['no','pred']].to_csv('submit2.csv',index = None)
+    r2 = TradaboostRegressor(20, 30, 4, XGBRegressor(n_estimators=200, max_depth=4, base_score=0.25, subsample=0.9, colsample_bytree=0.9, reg_alpha=8, reg_lambda=5, n_jobs=2))
+    # r2 = TradaboostRegressor(50, 50, 3, DecisionTreeRegressor(max_depth=7))
+    r2.train(a, a_y, b, b_y)
+    with open("r2_model", "wb+") as f:
+        pickle.dump(r2, f)
+    # with open("r2_model", "rb+") as f:
+    #     r2 = pickle.load(f)
 
-    print(cross_val_score(AdaBoostRegressor(XGBRegressor(n_estimators=100, max_depth=4, base_score=0.25, n_jobs=2)), b, b_y.as_matrix()[:, 1], n_jobs=2))
+    print("---------------------training finished---------------------")
+    test = pd.read_csv("D:/data analysis practise/4-14/bb_test.csv")
+    no = test["no"]
+    test.drop(["WebInfo_1", "no"], 1, inplace=True)
+    res = r2.predict(test)
+    test['pred'] = res
+    test["no"] = no
+    test[['no','pred']].to_csv('submit2.csv',index = None)
+
+    # print(cross_val_score(XGBRegressor(n_estimators=200, max_depth=4, base_score=0.25, subsample=0.9, colsample_bytree=0.9, reg_alpha=8, reg_lambda=5, n_jobs=2), b, b_y.as_matrix()[:, 1], n_jobs=2))
 
