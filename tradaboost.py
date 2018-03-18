@@ -1,22 +1,18 @@
 import os
 from functools import reduce
 from math import ceil
-import pickle
 
 import numpy as np
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.svm import SVR
 from sklearn.ensemble import AdaBoostRegressor
 import pandas as pd
 from scipy.optimize import minimize_scalar
 from xgboost import DMatrix, train
 from sklearn.utils.extmath import stable_cumsum
-from xgboost import XGBRegressor
 from sklearn.ensemble.weight_boosting import DTYPE, BaseDecisionTree, BaseForest, is_regressor, check_X_y, check_array, \
     check_random_state
 
-# from validation import cross_val_score
-from sklearn.model_selection import cross_val_score
+from validation import cross_val_score
+# from sklearn.model_selection import cross_val_score
 
 __all__ = ["TradaboostClassifier", "TradaboostRegressor"]
 
@@ -278,7 +274,7 @@ class TradaboostRegressor(object):
             if i > 0 and score <= scores[i-1]:
                 larger_times += 1
                 print("score is smaller than the last time %s:%s" % (score, scores[i-1]))
-                if larger_times > 4:
+                if larger_times > 5:
                     print("training is not getting any better, break")
                     break
             else:
@@ -323,30 +319,4 @@ class TradaboostRegressor(object):
         print("target weight sum: %s, loss: %s" % (target, res["fun"]))
 
         return res.x if res["success"] else None
-
-
-if __name__ == '__main__':
-    a = pd.read_csv("D:/data analysis practise/4-14/a_pre.csv", index_col=0)
-    b = pd.read_csv("D:/data analysis practise/4-14/b_pre.csv", index_col=0)
-    a_y = pd.read_csv("D:/data analysis practise/4-14/a_y.csv", header=None)
-    b_y = pd.read_csv("D:/data analysis practise/4-14/b_y.csv", header=None)
-    print("------finish loading---------")
-    r2 = TradaboostRegressor(20, 30, 4, XGBRegressor(n_estimators=200, max_depth=4, base_score=0.25, subsample=0.9, colsample_bytree=0.9, reg_alpha=8, reg_lambda=5, n_jobs=2))
-    # r2 = TradaboostRegressor(50, 50, 3, DecisionTreeRegressor(max_depth=7))
-    r2.train(a, a_y, b, b_y)
-    with open("r2_model", "wb+") as f:
-        pickle.dump(r2, f)
-    # with open("r2_model", "rb+") as f:
-    #     r2 = pickle.load(f)
-
-    print("---------------------training finished---------------------")
-    test = pd.read_csv("D:/data analysis practise/4-14/bb_test.csv")
-    no = test["no"]
-    test.drop(["WebInfo_1", "no"], 1, inplace=True)
-    res = r2.predict(test)
-    test['pred'] = res
-    test["no"] = no
-    test[['no','pred']].to_csv('submit2.csv',index = None)
-
-    # print(cross_val_score(XGBRegressor(n_estimators=200, max_depth=4, base_score=0.25, subsample=0.9, colsample_bytree=0.9, reg_alpha=8, reg_lambda=5, n_jobs=2), b, b_y.as_matrix()[:, 1], n_jobs=2))
 

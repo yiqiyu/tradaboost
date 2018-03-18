@@ -101,7 +101,7 @@ def _fit_and_score(estimator, X, y, scorer, train, test, verbose,
     fit_params = fit_params if fit_params is not None else {}
     fit_params = dict([(k, _index_param_value(X, v, train))
                       for k, v in fit_params.items()])
-    fit_params["indices"] = train
+    fit_params["indices"] = train           # the different part
 
     test_scores = {}
     train_scores = {}
