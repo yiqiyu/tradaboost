@@ -11,7 +11,10 @@ from sklearn.utils.extmath import stable_cumsum
 from sklearn.ensemble.weight_boosting import DTYPE, BaseDecisionTree, BaseForest, is_regressor, check_X_y, check_array, \
     check_random_state
 
-from tradaboost.validation import cross_val_score
+try:
+    from tradaboost.validation import cross_val_score
+except:
+    from validation import cross_val_score
 # from sklearn.model_selection import cross_val_score
 
 __all__ = ["TradaboostClassifier", "TradaboostRegressor"]
@@ -301,7 +304,11 @@ class TradaboostRegressor(object):
             eta = np.abs(y - y_predict)
             print("eta sum: %s" % eta.sum())
             print("eta max: %s" % eta.max())
-            eta /= eta.max()
+            if eta.max() > 0:
+                eta /= eta.max()
+            else:
+                print("no loss, break")
+                break
 
             beta = self.get_beta(eta, wt, i, n, m)
             if not beta:
