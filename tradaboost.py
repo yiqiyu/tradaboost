@@ -268,8 +268,8 @@ class TradaboostRegressor(object):
             X = pd.concat([tsX, ttX], ignore_index=True)
             y = pd.concat([tsy, tty], ignore_index=True).as_matrix()[:, 1]
         except TypeError:
-            X = np.hstack([tsX, ttX])
-            y = np.hstack([tsy, tty])
+            X = np.vstack([tsX, ttX])
+            y = np.vstack([tsy, tty])
         scores = np.full(self.S, -999, dtype=np.float64)
         wts = []
         larger_times = 0
