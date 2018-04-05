@@ -1,4 +1,4 @@
-import os
+﻿import os
 from functools import reduce
 from math import ceil
 
@@ -11,7 +11,7 @@ from sklearn.utils.extmath import stable_cumsum
 from sklearn.ensemble.weight_boosting import DTYPE, BaseDecisionTree, BaseForest, is_regressor, check_X_y, check_array, \
     check_random_state
 
-from validation import cross_val_score
+from tradaboost.validation import cross_val_score
 # from sklearn.model_selection import cross_val_score
 
 __all__ = ["TradaboostClassifier", "TradaboostRegressor"]
@@ -207,6 +207,7 @@ class AdaBoostRegressorDash(AdaBoostRegressor):
 
         # Calculate the average loss
         estimator_error = (sample_weight * error_vect).sum()
+        print("estimator_error %s" % estimator_error)
 
         if estimator_error <= 0:
             # Stop if fit is perfect
