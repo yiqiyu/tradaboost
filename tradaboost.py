@@ -299,6 +299,8 @@ class TradaboostRegressor(object):
             y_predict = self.learner.predict(X)
             eta = np.abs(y - y_predict)
             eta /= eta.max()
+            print("eta sum: %s" % eta.sum())
+            print("eta max: %s" % eta.max())
 
             beta = self.get_beta(eta, wt, i, n, m)
             if not beta:
