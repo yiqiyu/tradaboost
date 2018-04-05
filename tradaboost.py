@@ -238,7 +238,7 @@ class AdaBoostRegressorDash(AdaBoostRegressor):
 
 
 class TradaboostRegressor(object):
-    def __init__(self, N, S, F, learner):
+    def __init__(self, N, S, F, learner, parallel=2):
         """
         :param N:  the maximum number of boosting iterations N
         :param S:  the number of steps S
@@ -251,6 +251,7 @@ class TradaboostRegressor(object):
         self.F = F
         self.learner = learner
         self.model_t = None
+        self.parallel = parallel
 
     def train(self, tsX, tsy, ttX, tty):
         """
@@ -281,7 +282,7 @@ class TradaboostRegressor(object):
             if not wt[:n].any():
                 print("source sample weight are all zero, break")
                 break
-            score = cross_val_score(model_t, X, y, fit_params={"sample_weight": wt, "n": n}, cv=self.F, n_jobs=2).sum()/self.F
+            score = cross_val_score(model_t, X, y, fit_params={"sample_weight": wt, "n": n}, cv=self.F, n_jobs=self.parallel).sum()/self.F
             print("epoch %s: score %s" % (i, score))
 
             if i > 0 and score <= scores[i-1]:
@@ -298,9 +299,9 @@ class TradaboostRegressor(object):
             self.learner.fit(X, y, sample_weight=wt)
             y_predict = self.learner.predict(X)
             eta = np.abs(y - y_predict)
-            eta /= eta.max()
             print("eta sum: %s" % eta.sum())
             print("eta max: %s" % eta.max())
+            eta /= eta.max()
 
             beta = self.get_beta(eta, wt, i, n, m)
             if not beta:
