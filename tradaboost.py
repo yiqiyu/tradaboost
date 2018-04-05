@@ -207,7 +207,7 @@ class AdaBoostRegressorDash(AdaBoostRegressor):
 
         # Calculate the average loss
         estimator_error = (sample_weight * error_vect).sum()
-        print("estimator_error %s" % estimator_error)
+        # print("estimator_error %s" % estimator_error)
 
         if estimator_error <= 0:
             # Stop if fit is perfect
