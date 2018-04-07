@@ -10,11 +10,13 @@ from xgboost import DMatrix, train
 from sklearn.utils.extmath import stable_cumsum
 from sklearn.ensemble.weight_boosting import DTYPE, BaseDecisionTree, BaseForest, is_regressor, check_X_y, check_array, \
     check_random_state
+from sklearn.metrics import roc_auc_score
+from sklearn.base import clone
 
 try:
-    from tradaboost.validation import cross_val_score
+    from tradaboost.validation import cross_val_score, cross_val_predict
 except:
-    from validation import cross_val_score
+    from validation import cross_val_score, cross_val_predict
 # from sklearn.model_selection import cross_val_score
 
 __all__ = ["TradaboostClassifier", "TradaboostRegressor"]
@@ -176,7 +178,9 @@ class AdaBoostRegressorDash(AdaBoostRegressor):
                     sample_weight[self.n+1:] /= lack_factor
                 else:
                     sample_weight[self.m_indices] /= lack_factor
-        assert np.abs(sample_weight.sum() - 1.0) < 0.01 , "sample weight sum is %s rather than 1" % sample_weight.sum()
+
+        if sample_weight is not None:
+            assert np.abs(sample_weight.sum() - 1.0) < 0.01 , "sample weight sum is %s rather than 1" % sample_weight.sum()
         return self
 
     def _boost(self, iboost, X, y, sample_weight, random_state):
@@ -241,7 +245,7 @@ class AdaBoostRegressorDash(AdaBoostRegressor):
 
 
 class TradaboostRegressor(object):
-    def __init__(self, N, S, F, learner, parallel=2):
+    def __init__(self, N, S, F, learner, parallel=2, **learner_params):
         """
         :param N:  the maximum number of boosting iterations N
         :param S:  the number of steps S
@@ -255,6 +259,7 @@ class TradaboostRegressor(object):
         self.learner = learner
         self.model_t = None
         self.parallel = parallel
+        self.learner_params = learner_params
 
     def train(self, tsX, tsy, ttX, tty):
         """
@@ -278,29 +283,32 @@ class TradaboostRegressor(object):
         wts = []
         larger_times = 0
 
-        model_t = AdaBoostRegressorDash(self.learner, self.N)
+        model_t = AdaBoostRegressorDash(self.learner(**self.learner_params), self.N)
 
         for i in range(self.S):
             print(wt[:n].sum())
             if not wt[:n].any():
                 print("source sample weight are all zero, break")
                 break
-            score = cross_val_score(model_t, X, y, fit_params={"sample_weight": wt, "n": n}, cv=self.F, n_jobs=self.parallel).sum()/self.F
+            cross_y_predict = cross_val_predict(model_t, X, y, fit_params={"sample_weight": wt, "n": n}, cv=self.F, n_jobs=self.parallel)
+            score = roc_auc_score(y, cross_y_predict)               #TODO: metrics from input arg
             print("epoch %s: score %s" % (i, score))
 
             if i > 0 and score <= scores[i-1]:
                 larger_times += 1
                 print("score is smaller than the last time %s:%s" % (score, scores[i-1]))
-                if larger_times > 5:
+                print(larger_times)
+                if larger_times > 4:
                     print("training is not getting any better, break")
                     break
             else:
                 larger_times = 0
             scores[i] = score
-            wts.append(wt)
+            wts.append(wt.copy())
 
-            self.learner.fit(X, y, sample_weight=wt)
-            y_predict = self.learner.predict(X)
+            lnr = self.learner(**self.learner_params)
+            lnr.fit(X, y, sample_weight=wt*(n+m))
+            y_predict = lnr.predict(X)
             eta = np.abs(y - y_predict)
             print("eta sum: %s" % eta.sum())
             print("eta max: %s" % eta.max())
@@ -320,8 +328,8 @@ class TradaboostRegressor(object):
 
         t = scores.argmax()
         print("%sth is the best model, score:%s" % (t, scores[t]))
-        self.model_t = AdaBoostRegressorDash(self.learner, self.N)
-        self.model_t.fit(X, y, sample_weight=wts[t], n=n)
+        self.model_t = AdaBoostRegressorDash(self.learner(**self.learner_params), self.N)
+        self.model_t.fit(X, y, sample_weight=wts[t]*(n+m), n=n)
 
     def predict(self, X):
         assert self.model_t is not None, "You need to train your model first!"
