@@ -10,7 +10,7 @@ from xgboost import DMatrix, train
 from sklearn.utils.extmath import stable_cumsum
 from sklearn.ensemble.weight_boosting import DTYPE, BaseDecisionTree, BaseForest, is_regressor, check_X_y, check_array, \
     check_random_state
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import mean_squared_error
 from sklearn.base import clone
 
 try:
@@ -282,23 +282,30 @@ class TradaboostRegressor(object):
         scores = np.full(self.S, -999, dtype=np.float64)
         wts = []
         larger_times = 0
-
-        model_t = AdaBoostRegressorDash(self.learner(**self.learner_params), self.N)
+        total_bad_times = 0
+        best_score = -999
 
         for i in range(self.S):
             print(wt[:n].sum())
             if not wt[:n].any():
                 print("source sample weight are all zero, break")
                 break
-            cross_y_predict = cross_val_predict(model_t, X, y, fit_params={"sample_weight": wt, "n": n}, cv=self.F, n_jobs=self.parallel)
-            score = roc_auc_score(y, cross_y_predict)               #TODO: metrics from input arg
+            model_t = AdaBoostRegressorDash(self.learner(**self.learner_params), self.N)
+            score = cross_val_score(model_t, X, y, fit_params={"sample_weight": wt, "n": n}, cv=self.F, n_jobs=self.parallel).sum()/self.F
+            # cross_y_predict = cross_val_predict(model_t, X, y, fit_params={"sample_weight": wt, "n": n}, cv=self.F, n_jobs=self.parallel)
+            # score = mean_squared_error(y, cross_y_predict)*-1               #TODO: metrics from input arg
             print("epoch %s: score %s" % (i, score))
+
+            if score > best_score:
+                best_score = score
+                total_bad_times = 0
+            else:
+                total_bad_times += 1
 
             if i > 0 and score <= scores[i-1]:
                 larger_times += 1
                 print("score is smaller than the last time %s:%s" % (score, scores[i-1]))
-                print(larger_times)
-                if larger_times > 4:
+                if larger_times > 4 or total_bad_times > 10:
                     print("training is not getting any better, break")
                     break
             else:
@@ -306,8 +313,9 @@ class TradaboostRegressor(object):
             scores[i] = score
             wts.append(wt.copy())
 
+            # print(cross_val_score(self.learner(), X, y, cv=self.F, n_jobs=self.parallel))
             lnr = self.learner(**self.learner_params)
-            lnr.fit(X, y, sample_weight=wt*(n+m))
+            lnr.fit(X, y, sample_weight=wt)
             y_predict = lnr.predict(X)
             eta = np.abs(y - y_predict)
             print("eta sum: %s" % eta.sum())
@@ -329,7 +337,8 @@ class TradaboostRegressor(object):
         t = scores.argmax()
         print("%sth is the best model, score:%s" % (t, scores[t]))
         self.model_t = AdaBoostRegressorDash(self.learner(**self.learner_params), self.N)
-        self.model_t.fit(X, y, sample_weight=wts[t]*(n+m), n=n)
+        self.model_t.fit(X, y, sample_weight=wts[t], n=n)
+        self.model_t.best_score = scores[t]
 
     def predict(self, X):
         assert self.model_t is not None, "You need to train your model first!"

@@ -1,6 +1,7 @@
 import time
 import numbers
 import warnings
+import inspect
 
 import numpy as np
 from sklearn.model_selection._validation import _index_param_value, _safe_split, _score, FitFailedWarning, logger, _num_samples
@@ -102,7 +103,8 @@ def _fit_and_score(estimator, X, y, scorer, train, test, verbose,
     fit_params = fit_params if fit_params is not None else {}
     fit_params = dict([(k, _index_param_value(X, v, train))
                       for k, v in fit_params.items()])
-    fit_params["indices"] = train           # the different part
+    if "indices" in inspect.signature(estimator.fit).parameters:
+        fit_params["indices"] = train           # the different part
 
     test_scores = {}
     train_scores = {}
@@ -224,7 +226,9 @@ def _fit_and_predict(estimator, X, y, train, test, verbose, fit_params,
     fit_params = fit_params if fit_params is not None else {}
     fit_params = dict([(k, _index_param_value(X, v, train))
                       for k, v in fit_params.items()])
-    fit_params["indices"] = train                   # the different part
+
+    if "indices" in inspect.signature(estimator.fit).parameters:       # the different part
+        fit_params["indices"] = train
 
     X_train, y_train = _safe_split(estimator, X, y, train)
     X_test, _ = _safe_split(estimator, X, y, test, train)
