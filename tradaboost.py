@@ -10,6 +10,7 @@ from xgboost import DMatrix, train
 from sklearn.utils.extmath import stable_cumsum
 from sklearn.ensemble.weight_boosting import DTYPE, BaseDecisionTree, BaseForest, is_regressor, check_X_y, check_array, \
     check_random_state
+from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import mean_squared_error
 from sklearn.base import clone
 
@@ -244,6 +245,16 @@ class AdaBoostRegressorDash(AdaBoostRegressor):
         return sample_weight, estimator_weight, estimator_error
 
 
+def transfer_stratified_split(tsX, tsy, ttX, tty, cv=3):
+    ss = StratifiedKFold(cv)
+    ts = StratifiedKFold(cv)
+    n = len(tsy)
+    for ssg, tsg, in zip(ss.split(tsX, tsy.as_matrix()[:, 1]), ts.split(ttX, tty.as_matrix()[:, 1])):
+        yield (np.hstack((ssg[0], tsg[0]+n)), np.hstack((ssg[1], tsg[1]+n)))
+
+# for i in transfer_stratified_split([[1],[2],[3],[4], [9]], [0,1,0,1,0], [[5], [6],[7],[8]], [1, 0,1,0], 2):
+#     print(i)
+
 class TradaboostRegressor(object):
     def __init__(self, N, S, F, learner, parallel=2, **learner_params):
         """
@@ -291,9 +302,14 @@ class TradaboostRegressor(object):
                 print("source sample weight are all zero, break")
                 break
             model_t = AdaBoostRegressorDash(self.learner(**self.learner_params), self.N)
-            score = cross_val_score(model_t, X, y, fit_params={"sample_weight": wt, "n": n}, cv=self.F, n_jobs=self.parallel).sum()/self.F
-            # cross_y_predict = cross_val_predict(model_t, X, y, fit_params={"sample_weight": wt, "n": n}, cv=self.F, n_jobs=self.parallel)
-            # score = mean_squared_error(y, cross_y_predict)*-1               #TODO: metrics from input arg
+            # score = cross_val_score(model_t, X, y, fit_params={"sample_weight": wt, "n": n}, cv=self.F, n_jobs=self.parallel).sum()/self.F
+            fit_params = {
+                "sample_weight": wt*(n+m),
+                "n": n
+            }
+            cv = transfer_stratified_split(tsX, tsy, ttX, tty, cv=self.F)
+            cross_y_predict = cross_val_predict(model_t, X, y, fit_params=fit_params, cv=cv, n_jobs=self.parallel)
+            score = mean_squared_error(y[n+1:], cross_y_predict[n+1:])*-1               #TODO: metrics from input arg
             print("epoch %s: score %s" % (i, score))
 
             if score > best_score:
@@ -313,13 +329,13 @@ class TradaboostRegressor(object):
             scores[i] = score
             wts.append(wt.copy())
 
-            # print(cross_val_score(self.learner(), X, y, cv=self.F, n_jobs=self.parallel))
             lnr = self.learner(**self.learner_params)
-            lnr.fit(X, y, sample_weight=wt)
+            lnr.fit(X, y, sample_weight=wt*(m+n))
             y_predict = lnr.predict(X)
             eta = np.abs(y - y_predict)
-            print("eta sum: %s" % eta.sum())
-            print("eta max: %s" % eta.max())
+            print("rms: %s" % mean_squared_error(y, y_predict))
+            print("eta sum: %s" % eta[n+1:].sum())    # why eta is the same in every epoch? wt?
+            print("eta max: %s" % eta[n+1:].max())
             if eta.max() > 0:
                 eta /= eta.max()
             else:
@@ -337,7 +353,7 @@ class TradaboostRegressor(object):
         t = scores.argmax()
         print("%sth is the best model, score:%s" % (t, scores[t]))
         self.model_t = AdaBoostRegressorDash(self.learner(**self.learner_params), self.N)
-        self.model_t.fit(X, y, sample_weight=wts[t], n=n)
+        self.model_t.fit(X, y, sample_weight=wts[t]*(n+m), n=n)
         self.model_t.best_score = scores[t]
 
     def predict(self, X):
